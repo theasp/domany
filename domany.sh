@@ -186,7 +186,7 @@ sort -n ${workMachinesFile}.sort | uniq >> $workMachinesFile.edit
 
 sensible-editor $workMachinesFile.edit
 
-cat $workMachinesFile.edit | sed -e 's/\s*\#.*//' | egrep -v '^[:space:]*$' > $workMachinesFile
+cat $workMachinesFile.edit | sed -e 's/\s*\#.*//' | egrep -v '^[[:space:]]*$' > $workMachinesFile
 
 pingMachines
 
