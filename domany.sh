@@ -28,7 +28,7 @@ pingMachines () {
   echo "About to ping $(cat $workMachinesFile | wc -l) machine(s), please wait."
 
   # fping the whole list to show the ones that are up/down when we start.
-  fping < $workMachinesFile > $fpingMachinesFile
+  perl -p -e 's/(^|\s+)[^\s]+@/$1/' $workMachinesFile | fping  > $fpingMachinesFile
   err=$?
 
   cat $fpingMachinesFile | grep 'is alive$' | cut -f 1 -d ' ' | sort > $fpingMachinesFile.up
@@ -50,23 +50,23 @@ pingMachines () {
     downCount=$(wc -l $fpingMachinesFile.down | cut -f 1 -d ' ')
     if [ $err -ne 0 ]; then
       if [ ! "$QUICK" ]; then
-	echo
-	read -p "$downCount machine(s) down, do you want to exclude them? [Y/n/r/^c] " answer
-	if [ $? -ne 0 ]; then
-	  exit 1
-	fi
+        echo
+        read -p "$downCount machine(s) down, do you want to exclude them? [Y/n/r/^c] " answer
+        if [ $? -ne 0 ]; then
+          exit 1
+        fi
 
-	if [ "$answer" = "y" -o "$answer" = "Y" -o -z "$answer" ]; then
-	  cat $fpingMachinesFile.up > $workMachinesFile
-	fi
+        if [ "$answer" = "y" -o "$answer" = "Y" -o -z "$answer" ]; then
+          cat $fpingMachinesFile.up > $workMachinesFile
+        fi
 
-	if [ "$answer" = "r" -o "$ansrwer" = "R" ]; then
-	  pingMachines
-	fi
+        if [ "$answer" = "r" -o "$ansrwer" = "R" ]; then
+          pingMachines
+        fi
       else
-	echo
-	echo "Excluding $downCount down machine(s)."
-	cat $fpingMachinesFile.up > $workMachinesFile
+        echo
+        echo "Excluding $downCount down machine(s)."
+        cat $fpingMachinesFile.up > $workMachinesFile
       fi
     fi
   fi
@@ -205,7 +205,7 @@ if [ "$LOCAL" ]; then
     fi
 
     grep -v $(hostname -f) $workMachinesFile >> $workMachinesFile.local
-    
+
     if [ "$LOCAL" = "last" ]; then
       hostname -f >> $workMachinesFile.local
     fi
@@ -253,7 +253,15 @@ if [ "$URL" ]; then
   rsync $SCRIPTFILE $tempWebScriptFile
 fi
 
+cat $workMachinesFile
+
 for machine in $(cat $workMachinesFile); do
+  user=${machine%@*}
+  if [[ -n "$user" ]] || [[ "$user" = "$machine" ]]; then
+    user=$USER
+  fi
+  echo "User: $user  Machine: $machine"
+  machine=${machine#*@}
   if [ "$counterVal" ]; then
     scriptLogFile=$LOGDIR/$(date +%F-%T)_${machine}.log
   else
@@ -267,20 +275,20 @@ for machine in $(cat $workMachinesFile); do
         QUICK=yes
       fi
     else
-      echo "Doing $machine."
+      echo "Doing $user@$machine."
     fi
 
     launchScript=$(mktemp $workDir/launchScript-XXXXXX);
     if [ "$URL" ]; then
       cat > $launchScript <<LAUNCHSCRIPTEOF
-#!/bin/sh
-ssh -o "StrictHostKeyChecking no" -t $USER@$machine "wget $URL -O $tempScriptFile && chmod +x $tempScriptFile && nice $tempScriptFile; err=\\\$?; rm $tempScriptFile; exit \\\$err"
+#!/bin/bash
+ssh -o "StrictHostKeyChecking no" -t $user@$machine "wget $URL -O $tempScriptFile && chmod +x $tempScriptFile && nice $tempScriptFile; err=\\\$?; rm $tempScriptFile; exit \\\$err"
 err=\$?
 
 if [ \$err -ne 0 ]; then
-    echo "$machine # WWW Script returned error code: \$err" >> $errorMachinesFile
+  echo "$machine # WWW Script returned error code: \$err" >> $errorMachinesFile
 else
-    echo $machine >> $doneMachinesFile;
+  echo $machine >> $doneMachinesFile;
 fi
 
 echo -en "\\033]0;Done $machine\\007\a"
@@ -289,23 +297,23 @@ LAUNCHSCRIPTEOF
     else
       tempScriptFile=$(mktemp -u -t $scriptBaseName-XXXXXX);
       cat > $launchScript <<LAUNCHSCRIPTEOF
-#!/bin/sh
-echo Copying $SCRIPTFILE to $USER@$machine:$tempScriptFile
-scp $SCRIPTFILE $USER@$machine:$tempScriptFile
+#!/bin/bash
+echo Copying $SCRIPTFILE to $user@$machine:$tempScriptFile
+scp $SCRIPTFILE $user@$machine:$tempScriptFile
 
 if [ \$? -ne 0 ]; then
-    echo "$machine # Unable to copy script" >> $errorMachinesFile
+  echo "$machine # Unable to copy script" >> $errorMachinesFile
 else
-    echo "Running $tempScriptFile on $machine"
-    ssh -o "StrictHostKeyChecking no" -t $USER@$machine "chmod +x $tempScriptFile; nice $tempScriptFile; err=\\\$?; rm $tempScriptFile; exit \\\$err"
+  echo "Running $tempScriptFile on $machine"
+  ssh -o "StrictHostKeyChecking no" -t $user@$machine "chmod +x $tempScriptFile; nice $tempScriptFile; err=\\\$?; rm $tempScriptFile; exit \\\$err"
 
-    err=\$?
+  err=\$?
 
-    if [ \$err -ne 0 ]; then
-        echo "$machine - Script returned error code: \$err" >> $errorMachinesFile
-    else
-        echo $machine >> $doneMachinesFile;
-    fi
+  if [ \$err -ne 0 ]; then
+    echo "$machine - Script returned error code: \$err" >> $errorMachinesFile
+  else
+    echo $machine >> $doneMachinesFile;
+  fi
 fi
 
 echo -en "\\033]0;Done $machine\\007\a"
