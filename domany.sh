@@ -262,7 +262,10 @@ for machine in $(cat $workMachinesFile); do
 
   if fping -q $machine; then
     if [ ! "$QUICK" ]; then
-      read -p "Press enter to do $machine, ^C to stop." || exit 1
+      read -p "Press enter to do $machine, ! to do all, ^C to stop: " line || exit 1
+      if [[ "$line" = "!" ]]; then
+        QUICK=yes
+      fi
     else
       echo "Doing $machine."
     fi
