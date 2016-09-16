@@ -257,10 +257,10 @@ cat $workMachinesFile
 
 for machine in $(cat $workMachinesFile); do
   user=${machine%@*}
-  if [[ -n "$user" ]] || [[ "$user" = "$machine" ]]; then
+  if [[ -z "$user" ]] || [[ "$user" = "$machine" ]]; then
     user=$USER
   fi
-  echo "User: $user  Machine: $machine"
+
   machine=${machine#*@}
   if [ "$counterVal" ]; then
     scriptLogFile=$LOGDIR/$(date +%F-%T)_${machine}.log
