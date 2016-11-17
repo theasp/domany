@@ -6,15 +6,16 @@ usage() {
   echo "Usage: $0 [options] <script.sh> [listOfMachines.txt ...]" 1>&2
   echo "" 1>&2
   echo "Options:" 1>&2
-  echo "  -U, --user     Use a user other than root" 1>&2
-  echo "  -q, --quick    Quick mode, don't ask questions" 1>&2
-  echo "  -s, --ssh      Force use of SSH copy mode" 1>&2
-  echo "  -l, --logdir   Directory to write log files to" 1>&2
-  echo "  -u, --url      Base of URL to get scripts from" 1>&2
-  echo "  -w, --webdir   Base of directory to copy scripts, should match URL" 1>&2
-  echo "  -c, --counter  File to use as a counter" 1>&2
-  echo "  -f, --localfirst Do local machine first" 1>&2
-  echo "  -L, --locallast  Do local machine last" 1>&2
+  echo "  -U, --user           Use a user other than root" 1>&2
+  echo "  -q, --quick          Quick mode, don't ask questions" 1>&2
+  echo "  -s, --ssh            Force use of SSH copy mode" 1>&2
+  echo "  -l, --logdir         Directory to write log files to" 1>&2
+  echo "  -u, --url            Base of URL to get scripts from" 1>&2
+  echo "  -w, --webdir         Base of directory to copy scripts, should match URL" 1>&2
+  echo "  -c, --counter        File to use as a counter" 1>&2
+  echo "  -f, --localfirst     Do local machine first" 1>&2
+  echo "  -L, --locallast      Do local machine last" 1>&2
+  #echo "  -c, --confirm-close  Confirm closing run windows"
   echo "" 1>&2
   echo "If url and webdir are specified, wget will be used for copying scripts," 1>&2
   echo "otherwise SSH will be used to copy." 1>&2
@@ -285,14 +286,15 @@ for machine in $(cat $workMachinesFile); do
 ssh -o "StrictHostKeyChecking no" -t $user@$machine "wget $URL -O $tempScriptFile && chmod +x $tempScriptFile && nice $tempScriptFile; err=\\\$?; rm $tempScriptFile; exit \\\$err"
 err=\$?
 
+echo -en "\\033]0;Done $machine\\007\a"
+
 if [ \$err -ne 0 ]; then
   echo "$machine # WWW Script returned error code: \$err" >> $errorMachinesFile
+  read -p "ERROR: Press enter to close"
 else
   echo $machine >> $doneMachinesFile;
 fi
 
-echo -en "\\033]0;Done $machine\\007\a"
-read -p "Done, press enter."
 LAUNCHSCRIPTEOF
     else
       tempScriptFile=$(mktemp -u -t $scriptBaseName-XXXXXX);
@@ -309,22 +311,24 @@ else
 
   err=\$?
 
+  echo -en "\\033]0;Done $machine\\007\a"
+
   if [ \$err -ne 0 ]; then
     echo "$machine - Script returned error code: \$err" >> $errorMachinesFile
+    read -p "ERROR: Press enter to close"
   else
     echo $machine >> $doneMachinesFile;
+    #read -p "OK: Press enter to close"
   fi
 fi
 
-echo -en "\\033]0;Done $machine\\007\a"
-read -p "Done, press enter."
 LAUNCHSCRIPTEOF
     fi
 
     chmod +x $launchScript
 
     #echo "Doing $machine..."
-    gnome-terminal \
+    mate-terminal \
       --sm-disable \
       --disable-factory \
       --title "Doing $machine" \
